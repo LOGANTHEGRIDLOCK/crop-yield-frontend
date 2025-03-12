@@ -1,6 +1,10 @@
 import { useState } from "react";
 import Charts from "./Charts";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+
+
 export default function CropYieldPrediction() {
   const [formData, setFormData] = useState({
     region: "North",
@@ -46,7 +50,7 @@ export default function CropYieldPrediction() {
     };
 
     try {
-      const response = await fetch("https://crop-yield-backend.onrender.com/predict", {
+      const response = await fetch(`${API_URL}/predict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestData),
