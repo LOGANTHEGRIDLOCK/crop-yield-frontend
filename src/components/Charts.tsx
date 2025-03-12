@@ -36,7 +36,7 @@ const Charts: React.FC<ChartsProps> = ({
 
   // Fetch prediction history from the backend instead of using localStorage
   useEffect(() => {
-    fetch("http://localhost:8000/history")
+    fetch("https://crop-yield-backend.onrender.com/history")
       .then(response => response.json())
       .then(data => setPredictionHistory(data.history))
       .catch(error => console.error("Error fetching history:", error));
@@ -67,7 +67,7 @@ const Charts: React.FC<ChartsProps> = ({
 
   const archiveHistory = async () => {
     try {
-      await fetch("http://localhost:8000/archive", { method: "POST" });
+      await fetch("https://crop-yield-backend.onrender.com/archive", { method: "POST" });
       setPredictionHistory([]);  // Clear current history view
     } catch (error) {
       console.error("Error archiving history:", error);
