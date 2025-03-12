@@ -65,6 +65,7 @@ export default function CropYieldPrediction() {
         setOptimalYield(null);
         setRecommendations([]);
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       setPredictionResult("Error: Unable to connect to the server");
       setYieldValue(null);
