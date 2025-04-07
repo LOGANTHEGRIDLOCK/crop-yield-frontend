@@ -19,7 +19,7 @@ const Hero: React.FC<HeroProps> = ({ formRef }) => {
         🌾  Predictive tool for <span className="text-blue-700">Farmers </span>
         </h1>
         <p className="text-lg leading-relaxed text-slate-500">
-          We help you streamline your workflow by planning, time-boxing, and executing one task at a time.
+          We help you streamline your workflow by planning, time-boxing, and executing one task at a time. by Logan
         </p>
 
         {/* Scroll to form button */}
