@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   LineChart, Line, CartesianGrid, Legend, 
-  ComposedChart, Area
+  ComposedChart, Area, PieChart, Pie, Cell
 } from "recharts";
 
 // Define interfaces for props and historical data
 interface PredictionHistory {
   date: string;
   yield: number;
-  crop: string;  // Changed from cropType to crop to match backend
+  crop: string;
   region: string;
 }
 
@@ -35,11 +35,12 @@ const Charts: React.FC<ChartsProps> = ({
   const [predictionHistory, setPredictionHistory] = useState<PredictionHistory[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [historyStats, setHistoryStats] = useState<any>(null);
 
-  // Fetch prediction history from the backend
+  // Fetch prediction history from the backend with time period parameter
   useEffect(() => {
     setIsLoading(true);
-    fetch("https://crop-yield-backend.onrender.com/history")
+    fetch(`https://crop-yield-backend.onrender.com/history?time_period=${timePeriod}`)
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -62,7 +63,24 @@ const Charts: React.FC<ChartsProps> = ({
         setError("Failed to load prediction history. Please try again later.");
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [timePeriod]);
+
+  // Fetch history stats
+  useEffect(() => {
+    fetch("https://crop-yield-backend.onrender.com/history/stats")
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setHistoryStats(data);
+      })
+      .catch(error => {
+        console.error("Error fetching history stats:", error);
+      });
+  }, [predictionHistory]);
 
   // Generate comparison data
   const comparisonData = [
@@ -71,23 +89,11 @@ const Charts: React.FC<ChartsProps> = ({
     { name: "Optimal Yield", yield: optimalYield }
   ];
 
-  // Process historical data based on selected time period
+  // Process historical data for display
   const getFilteredHistory = () => {
     if (!predictionHistory.length) return [];
     
-    const now = new Date();
-    return predictionHistory.filter(item => {
-      try {
-        const predDate = new Date(item.date);
-        if (isNaN(predDate.getTime())) return false;
-        
-        if (timePeriod === 'week') return (now.getTime() - predDate.getTime()) <= 7 * 24 * 60 * 60 * 1000;
-        if (timePeriod === 'month') return (now.getTime() - predDate.getTime()) <= 30 * 24 * 60 * 60 * 1000;
-        return (now.getTime() - predDate.getTime()) <= 365 * 24 * 60 * 60 * 1000;
-      } catch (e) {
-        return false;
-      }
-    }).map(item => ({
+    return predictionHistory.map(item => ({
       ...item,
       date: new Date(item.date).toLocaleDateString(),
       cropType: item.crop // Map crop to cropType for display
@@ -103,7 +109,10 @@ const Charts: React.FC<ChartsProps> = ({
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      setPredictionHistory([]);
+      // Refresh the history data
+      const historyResponse = await fetch(`https://crop-yield-backend.onrender.com/history?time_period=${timePeriod}`);
+      const data = await historyResponse.json();
+      setPredictionHistory(data.history || []);
       setError(null);
     } catch (error) {
       console.error("Error archiving history:", error);
@@ -145,6 +154,17 @@ const Charts: React.FC<ChartsProps> = ({
 
   const daysToHarvestData = generateDaysToHarvestData();
 
+  // Prepare data for pie chart if historyStats is available
+  const getPieChartData = () => {
+    if (!historyStats || !historyStats.by_crop) return [];
+    
+    return Object.entries(historyStats.by_crop).map(([crop, count]: [string, any]) => ({
+      name: crop,
+      value: count
+    }));
+  };
+
+  const pieColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
 
   return (
     <div className="bg-white">
@@ -196,6 +216,36 @@ const Charts: React.FC<ChartsProps> = ({
           </div>
         )}
 
+        {/* Data summary card */}
+        {historyStats && (
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 mb-6">
+            <h3 className="text-lg font-semibold text-center mb-4">Prediction History Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h4 className="text-sm font-medium text-blue-800">Total Predictions</h4>
+                <p className="text-2xl font-bold text-blue-600">{historyStats.total_predictions}</p>
+                <p className="text-xs text-blue-500 mt-1">Active in database</p>
+              </div>
+              
+              <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                <h4 className="text-sm font-medium text-green-800">Archived Records</h4>
+                <p className="text-2xl font-bold text-green-600">{historyStats.total_archived}</p>
+                <p className="text-xs text-green-500 mt-1">Historical data saved</p>
+              </div>
+              
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                <h4 className="text-sm font-medium text-purple-800">Current Time Period</h4>
+                <p className="text-2xl font-bold text-purple-600">
+                  {timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)}
+                </p>
+                <p className="text-xs text-purple-500 mt-1">
+                  Showing data from the last {timePeriod === 'week' ? '7 days' : timePeriod === 'month' ? '30 days' : '365 days'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Comparison Chart */}
           <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
@@ -235,7 +285,7 @@ const Charts: React.FC<ChartsProps> = ({
               </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-gray-500">
-                No historical data available
+                No historical data available for this time period
               </div>
             )}
           </div>
@@ -270,6 +320,49 @@ const Charts: React.FC<ChartsProps> = ({
           </ResponsiveContainer>
         </div>
 
+        {/* Crop Distribution Pie Chart (if history stats available) */}
+        {historyStats && Object.keys(historyStats.by_crop || {}).length > 0 && (
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 mt-6">
+            <h3 className="text-lg font-semibold text-center mb-2">Crop Distribution</h3>
+            <div className="flex flex-col md:flex-row">
+              <div className="w-full md:w-1/2">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={getPieChartData()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {getPieChartData().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value} predictions`, 'Count']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-full md:w-1/2 flex items-center">
+                <div className="w-full">
+                  <h4 className="text-md font-semibold mb-2">Crop Distribution</h4>
+                  <div className="space-y-2">
+                    {Object.entries(historyStats.by_crop || {}).map(([crop, count]: [string, any], index) => (
+                      <div key={crop} className="flex items-center">
+                        <div className="w-4 h-4 mr-2" style={{ backgroundColor: pieColors[index % pieColors.length] }}></div>
+                        <span className="text-sm">{crop}: {count} predictions</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Prediction History Table */}
         {predictionHistory.length > 0 && (
           <div className="bg-white p-4 rounded-lg shadow border border-gray-200 mt-6">
@@ -280,7 +373,7 @@ const Charts: React.FC<ChartsProps> = ({
                 className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-red-300"
                 disabled={isLoading}
               >
-                {isLoading ? 'Clearing...' : 'Clear History'}
+                {isLoading ? 'Archiving...' : 'Archive History'}
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -302,7 +395,7 @@ const Charts: React.FC<ChartsProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {predictionHistory.slice(-5).reverse().map((item, idx) => (
+                  {predictionHistory.slice(-10).reverse().map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="py-2 px-4 text-sm text-gray-500">
                         {new Date(item.date).toLocaleDateString()}
