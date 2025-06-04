@@ -335,7 +335,7 @@ const Charts: React.FC<ChartsProps> = ({
                       dataKey="value"
                       label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {getPieChartData().map((_, index) => (
+                      {getPieChartData().map((_: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                       ))}
                     </Pie>
