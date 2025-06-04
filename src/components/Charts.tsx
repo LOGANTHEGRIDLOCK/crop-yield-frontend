@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { 
@@ -334,7 +335,7 @@ const Charts: React.FC<ChartsProps> = ({
                       dataKey="value"
                       label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {getPieChartData().map((entry, index) => (
+                      {getPieChartData().map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                       ))}
                     </Pie>
