@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   LineChart, Line, CartesianGrid, Legend, 
@@ -39,17 +40,14 @@ const Charts: React.FC<ChartsProps> = ({
 
   // Fetch prediction history from the backend with time period parameter
   useEffect(() => {
-    setIsLoading(true);
-    fetch(`https://crop-yield-backend.onrender.com/history?time_period=${timePeriod}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
+    const fetchHistory = async () => {
+      setIsLoading(true);
+      try {
+        const response = await axios.get(`https://crop-yield-backend.onrender.com/history`, {
+          params: { time_period: timePeriod }
+        });
         // Transform data to ensure it matches our interface
-        const formattedHistory = data.history.map((item: any) => ({
+        const formattedHistory = response.data.history.map((item: any) => ({
           date: item.date,
           yield: Number(item.yield),
           crop: item.crop,
@@ -57,29 +55,29 @@ const Charts: React.FC<ChartsProps> = ({
         }));
         setPredictionHistory(formattedHistory);
         setError(null);
-      })
-      .catch(error => {
+      } catch (error) {
         console.error("Error fetching history:", error);
         setError("Failed to load prediction history. Please try again later.");
-      })
-      .finally(() => setIsLoading(false));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
   }, [timePeriod]);
 
   // Fetch history stats
   useEffect(() => {
-    fetch("https://crop-yield-backend.onrender.com/history/stats")
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        setHistoryStats(data);
-      })
-      .catch(error => {
+    const fetchHistoryStats = async () => {
+      try {
+        const response = await axios.get("https://crop-yield-backend.onrender.com/history/stats");
+        setHistoryStats(response.data);
+      } catch (error) {
         console.error("Error fetching history stats:", error);
-      });
+      }
+    };
+
+    fetchHistoryStats();
   }, [predictionHistory]);
 
   // Generate comparison data
@@ -105,14 +103,12 @@ const Charts: React.FC<ChartsProps> = ({
   const archiveHistory = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("https://crop-yield-backend.onrender.com/archive", { method: "POST" });
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      await axios.post("https://crop-yield-backend.onrender.com/archive");
       // Refresh the history data
-      const historyResponse = await fetch(`https://crop-yield-backend.onrender.com/history?time_period=${timePeriod}`);
-      const data = await historyResponse.json();
-      setPredictionHistory(data.history || []);
+      const historyResponse = await axios.get(`https://crop-yield-backend.onrender.com/history`, {
+        params: { time_period: timePeriod }
+      });
+      setPredictionHistory(historyResponse.data.history || []);
       setError(null);
     } catch (error) {
       console.error("Error archiving history:", error);
